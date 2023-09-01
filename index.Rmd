@@ -1,6 +1,6 @@
 ---
 title: "Meilin Zheng"
-image: ""
+image: "LinLin.jpg"
 links:
   - label: LinkedIn
     url: "https://www.linkedin.com/in/meilin-zheng-2865a2241/"
