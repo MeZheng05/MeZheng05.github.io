@@ -1,19 +1,26 @@
 ---
 title: "Meilin Zheng"
-image: "WeChat Image_20230708022521.jpg"
+image: ""
 links:
   - label: LinkedIn
-    url: "https://linkedin.com/"
-  - label: Twitter
-    url: "https://twitter.com/"
+    url: "https://www.linkedin.com/in/meilin-zheng-2865a2241/"
   - label: GitHub
-    url: "https://github.com/"
+    url: "https://github.com/MeZheng05"
   - label: Email
-    url: "mailto:email@email.com"
+    url: "mailto:mzheng26@jh.edu"
 output:
   postcards::jolla
 ---
- 
-I am a classically trained data scientist living in the San Francisco Bay Area. 
-Currently I work on the Oculus team at Facebook. I love talking about baseball, 
-true crime podcasts, and causal inference.
+
+*A little about me*
+
+I am an first-year ScM Biostatistics student at Johns Hopkins School of Public Health. I graduated from the University of New Mexico this year with a bachelor in Statistics and a bachelor in Economics in spring 2023. I worked as a part-time research assistant at the UNM Health Science Center for one and a half year, and this is when I developed my passion in using statistics in health science research. 
+
+I have used R for data analysis, and I have 3-year experience using R markdown and Latex. In this course, I would like to learn how to effectively use Github. Github is new to me, and I want to explore its function, especially to see how it can be used for collaborations of code editting. 
+
+
+*Fun Facts about me*
+
+I love hiking, listening to music, and jogging. Recently, I focus more on finding my inner peace. I am doing Taiji right now, which is a way for me to relax me from stress and tension. 
+
+
