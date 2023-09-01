@@ -16,12 +16,10 @@ output:
 
 I am an first-year ScM Biostatistics student at Johns Hopkins School of Public Health. I graduated from the University of New Mexico this year with a bachelor in Statistics and a bachelor in Economics in spring 2023. I worked as a part-time research assistant at the UNM Health Science Center for one and a half year, and this is when I developed my passion in using statistics in health science research. 
 
-I have used R for data analysis, and I have 3-year experience using R markdown and Latex. In this course, I would like to learn how to effectively use Github. Github is new to me, and I want to explore its function, especially to see how it can be used for collaborations of code editting. 
+I have 3-year experience using R markdown and Latex. In this course, I would like to learn how to effectively use Github. Github is new to me, and I want to explore its function, especially to see how it can be used for collaborations of code editing. 
 
 
 *Fun Facts about me*
 
-I love hiking, listening to music, and jogging. Recently, I focus more on finding my inner peace. I am doing Taiji right now, which is a way for me to relax me from stress and tension. 
-
-
+I love hiking, listening to music, and jogging. Recently, I focus more on finding my inner peace. I am doing Taiji right now, which is a way for me to relax me from stress and tension.
 
