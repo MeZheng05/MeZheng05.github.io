@@ -1,0 +1,323 @@
+---
+title: "STAT Computing Project I"
+output: html_document
+author: "Meilin Zheng"
+date: "2023-09-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(here)
+library(tidyverse)
+
+# tests if a directory named "data" exists locally
+if (!dir.exists(here("data"))) {
+    dir.create(here("data"))
+}
+
+# saves data only once (not each time you knit a R Markdown)
+if (!file.exists(here("data", "chocolate.RDS"))) {
+    url_csv <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-18/chocolate.csv"
+    chocolate <- readr::read_csv(url_csv)
+
+    # save the file to RDS objects
+    saveRDS(chocolate, file = here("data", "chocolate.RDS"))
+}
+```
+```{r}
+chocolate <- readRDS(here("data", "chocolate.RDS"))
+as_tibble(chocolate)
+```
+
+
+# Part I: Explore Data
+
+* Histogram of Ratings 
+
+```{r}
+p <- ggplot(data = chocolate) + geom_histogram(aes(x = rating), bins = 15) + labs(title = "Historgam of Chocolate Ratings") + scale_x_continuous(n.breaks = 15) + theme_bw()
+p
+```
+
+The above plot is the histogram of the rating scores. 
+
+I chose the number of bins to be 15. When the number of the bins become larger, we have smaller bin widths -- columns (each range) are more spread out and the total number of counts for each column (each range) become smaller. When the number of the bins become smaller, we have larger bin widths so that columns are more clustered together to form a more complete shape of histogram, and columns have larger counts as well. 
+
+The reason I pick 15 as the number of bins is because I want a more complete shape/trend of the distribution of ratings while I also don't want one column to include too many observations (I want the histogram to be more specific on the distribution of ratings). Therefore, I pick the one that is in the middle -- it gives me a more complete trend than the larger number of bins, and it is more specific about the distribution than only 10 bins. 
+
+
+* Number of Reviews by Country of Bean Origin 
+
+```{r}
+chocolate %>% select(country_of_bean_origin) %>% group_by(country_of_bean_origin) %>% summarise(num_reviews = length(country_of_bean_origin)) %>% print(n = 62)
+```
+
+The above is the summary table of the number of reviews by each country of bean origin. 
+
+Among the chocolates bring reviewed, Venezuela is the largest bean origin country (253 reviews), following by Peru (244) and Dominican Republic (226).
+
+
+* Ecuador: mean and sd of rating scores, and total number of reviews
+
+```{r}
+chocolate %>% filter(country_of_bean_origin == 'Ecuador') %>% summarise(mean = mean(rating), sd = sd(rating), total = length(rating))
+```
+For the bean origin country Ecuador, the mean of rating of chocolates is 3.164384, with a standard deviation of 0.5122678, and there are 219 number of reviews. 
+
+* Which company (name) makes the best chocolate (or has the highest ratings on average) with beans from Ecuador?
+
+```{r}
+tib <- chocolate %>% filter(country_of_bean_origin == 'Ecuador') %>% group_by(company_manufacturer) %>% summarise(mean_rating = mean(rating))
+
+tib[order(as.numeric(tib$mean_rating), decreasing = TRUE), ]
+```
+
+For chocolate that has its beans come from Ecuador, companies Amano, Benoit Nihant, Beschle (Felchlin), Durci, and Smooth Chocolator, The has the highest rating scores (a mean score of 4). 
+
+
+* Average rating across all country of origins for beans. Top 3 countries (for bean origin) have the highest ratings on average.
+
+```{r}
+tib2 <- chocolate %>% group_by(country_of_bean_origin) %>% summarise(mean_ratings = mean(rating))
+tib2[order(tib2$mean_ratings, decreasing = TRUE), ]
+```
+
+
+The above table contains all the mean ratings of chocolate by their country of bean origins, in decreasing order. Top 3 countries have highest mean ratings are: Tobago, China, and Sao Tome & Principe. However, some of the high ratings/ low mean ratings may be caused by an extreme outlier in a limited sample. 
+
+* Top 3 countries have the highest ratings on average with countries of bean origins that have less than 10 chocolate bar reviews removed. 
+
+```{r}
+tib2 <- chocolate %>% group_by(country_of_bean_origin) %>% filter(length(country_of_bean_origin) >= 10) %>% summarise(mean_ratings = mean(rating))
+tib2[order(tib2$mean_ratings, decreasing = TRUE), ]
+```
+
+With countries of bean origins that have less than 10 chocolate bar reviews being removed, the top three are now: Solomon Islands (mean rating of 3.45), Congo	(mean rating of 3.318182), and Cuba (mean rating of 3.291667). 
+
+* Relationship between percent chocolate and ratings
+
+```{r}
+chocolate_atleast50 <- chocolate %>% group_by(country_of_bean_origin) %>% summarise(num_review = length(country_of_bean_origin)) %>% filter(num_review >= 50)
+chocolate_atleast50
+
+country <- chocolate_atleast50$country_of_bean_origin
+country
+
+# Remove all countries with less than 50 reviews
+chocholate_new <- chocolate %>% filter(country_of_bean_origin %in% country)
+
+# create a factor of cocoa percentage
+chocholate_new$cocoa_percent <- as.numeric(sub("%", "", chocholate_new$cocoa_percent))
+chocholate_new <- chocholate_new %>% mutate(cocoa_percent_category = case_when(
+  cocoa_percent < 60   ~ '60% less'
+ ,cocoa_percent >= 60 & cocoa_percent < 70 ~ '60% to 70%'
+ ,cocoa_percent >= 70 & cocoa_percent < 90 ~ '70%  to 90%'
+ ,cocoa_percent >= 90  ~ '90% and more'
+))
+#re-order the factor levels (if needed) to be starting with the smallest percentage group and increasing to the largest percentage group
+chocholate_new$cocoa_percent_category <- factor(chocholate_new$cocoa_percent_category,
+  levels = c('60% less', '60% to 70%', '70%  to 90%', '90% and more')
+)
+```
+
+```{r, fig.width= 15}
+#set of four side-by-side boxplots 
+p <- ggplot(data = chocholate_new) + geom_boxplot(aes(x = cocoa_percent_category, y = rating)) + facet_wrap(. ~ country_of_bean_origin, ncol = 4) + labs(title = "Boxplots of Rating Scores vs Cocoa Percentage, by Country of Bean Oringin")
+p
+```
+
+
+From the above boxplot, we can see that a cocoa percentage between 70% to 90% seems to be the most highly rated. A cocoa percentage between 60% to 70% also seems to be very highly rated, in some cases, it is even slightly better than chocolate with cocoa percentage between 70% to 90% (e.g., the beans are from Bolivia). Chocolate with cocoa percentage less than 60% and chocolate with cocoa percentage more than 90% seems to be lower rated. 
+
+I would say that the country of the bean's origin does not have too much effect on ratings. When grouping these plots by bean's origin countries, we see that almost all the countries have their chocolate follows a similar pattern in ratings -- 70% to 90% and 60% to 70% have the highest ratings, and below 60% or above 90% have lowest ratings. Note that there are some countries that do not have enough data in each category, which may influence our conclusion. 
+
+# Part II: Join Two Datasets Together
+
+```{r}
+# load data
+library(gapminder)
+continent <- unique(gapminder %>% select(country, continent))
+
+# remove the country of bean origin named "Blend"
+chocolate_2 <- chocolate %>% filter(country_of_bean_origin != "Blend")
+
+# keep reviews that have reviews from countries of bean origin with at least 10 reviews
+chocolate_atleast10 <- chocolate %>% group_by(country_of_bean_origin) %>% summarise(num_review = length(country_of_bean_origin)) %>% filter(num_review >= 10)
+country <- chocolate_atleast10$country_of_bean_origin
+chocolate_2 <- chocolate_2 %>% filter(country_of_bean_origin %in% country)
+
+# Inner Join these two dataset by country
+colnames(chocolate_2)[5] <- 'country'
+chocolate_with_continent <- left_join(chocolate_2, continent, by = 'country')
+
+# Add continent for NAs. 
+##check for NAs
+nas <- chocolate_with_continent[is.na(chocolate_with_continent$continent), ]
+##unique(nas$country)
+## Add these countries of NAs with their continents
+country <- c('Fiji', "Papua New Guinea", "Sao Tome", "Vanuatu", "Trinidad", "Belize", "Grenada", "Congo", "Solomon Islands", "St. Lucia", "U.S.A.")
+conti <- c("Oceania", "Oceania", "Africa", "Oceania", "Americas", "Americas", "Americas", "Africa", "Oceania", "Africa", "Americas")
+add <- data.frame(cbind(country, conti))
+colnames(add)[2] <- 'continent'
+continent_update <- rbind(continent, add)
+##update our dataset
+chocolate_with_continent <- left_join(chocolate_2, continent_update, by = 'country')
+unique(is.na(chocolate_with_continent$continent)) ## no NAs anymore
+
+# Make a set of violin plots with ratings on the y-axis and continents on the x-axis.
+p <- ggplot(chocolate_with_continent, aes(x = continent, y = rating)) + geom_violin()
+p
+```
+
+# PART III: Convert wide data into long data
+
+```{r}
+chocolate_ingredients <- chocolate %>% mutate(
+  char_cocoa = case_when(
+  str_detect(chocolate$most_memorable_characteristics, "cocoa") == 'FALSE' ~ 0, 
+  str_detect(chocolate$most_memorable_characteristics, "cocoa") == 'TRUE' ~ 1
+),
+  char_sweet = case_when(
+  str_detect(chocolate$most_memorable_characteristics, "sweet") == 'FALSE' ~ 0, 
+  str_detect(chocolate$most_memorable_characteristics, "sweet") == 'TRUE' ~ 1
+),
+  char_nutty = case_when(
+  str_detect(chocolate$most_memorable_characteristics, "nutty") == 'FALSE' ~ 0, 
+  str_detect(chocolate$most_memorable_characteristics, "nutty") == 'TRUE' ~ 1
+),
+  char_creamy = case_when(
+  str_detect(chocolate$most_memorable_characteristics, "creamy") == 'FALSE' ~ 0, 
+  str_detect(chocolate$most_memorable_characteristics, "creamy") == 'TRUE' ~ 1
+),
+  char_roasty = case_when(
+  str_detect(chocolate$most_memorable_characteristics, "roasty") == 'FALSE' ~ 0, 
+  str_detect(chocolate$most_memorable_characteristics, "roasty") == 'TRUE' ~ 1
+),
+  char_earthy = case_when(
+  str_detect(chocolate$most_memorable_characteristics, "earthy") == 'FALSE' ~ 0, 
+  str_detect(chocolate$most_memorable_characteristics, "earthy") == 'TRUE' ~ 1
+)
+)
+
+chocolate_ingredients$ingredients_new <- (str_split_fixed(chocolate_ingredients$ingredients, "-", 2))[ , 2]
+
+chocolate_ingredients <- chocolate_ingredients %>% mutate(
+  beans = case_when(
+  str_detect(chocolate_ingredients$ingredients_new, "B") == 'FALSE' ~ 0, 
+  str_detect(chocolate_ingredients$ingredients_new, "B") == 'TRUE' ~ 1
+),
+  sugar = case_when(
+  ((str_detect(chocolate_ingredients$ingredients_new, "S") & !str_detect(chocolate_ingredients$ingredients_new, "Sa")) | (str_detect(chocolate_ingredients$ingredients_new, "S") & str_detect(chocolate_ingredients$ingredients_new, "Sa"))) == 'FALSE' ~ 0, 
+  ((str_detect(chocolate_ingredients$ingredients_new, "S") & !str_detect(chocolate_ingredients$ingredients_new, "Sa")) | (str_detect(chocolate_ingredients$ingredients_new, "S") & str_detect(chocolate_ingredients$ingredients_new, "Sa"))) == 'TRUE' ~ 1
+), #Since Sa (salt) also contains s, we want to find the combination of (S occur but not Sa) and (S occur and Sa occur), this combination is the whole event of S (sugar) occur
+  cocoa_butter = case_when(
+  str_detect(chocolate_ingredients$ingredients_new, "C") == 'FALSE' ~ 0, 
+  str_detect(chocolate_ingredients$ingredients_new, "C") == 'TRUE' ~ 1
+),
+  vanilla = case_when(
+  str_detect(chocolate_ingredients$ingredients_new, "V") == 'FALSE' ~ 0, 
+  str_detect(chocolate_ingredients$ingredients_new, "V") == 'TRUE' ~ 1
+),
+  letchin = case_when(
+  str_detect(chocolate_ingredients$ingredients_new, "L") == 'FALSE' ~ 0, 
+  str_detect(chocolate_ingredients$ingredients_new, "L") == 'TRUE' ~ 1
+),
+  salt = case_when(
+  str_detect(chocolate_ingredients$ingredients_new, "Sa") == 'FALSE' ~ 0, 
+  str_detect(chocolate_ingredients$ingredients_new, "Sa") == 'TRUE' ~ 1
+),
+)
+
+
+```
+
+```{r}
+mean_ingredient_year <- chocolate_ingredients %>% group_by(review_date) %>% summarise(beans = mean(beans), sugar = mean(sugar), cocoa_butter = mean(cocoa_butter), vanilla = mean(vanilla), letchin = mean(letchin), salt = mean(salt), char_cocoa = mean(char_cocoa), char_sweet = mean(char_sweet), char_nutty = mean(char_nutty), char_creamy = mean(char_creamy), char_roasty = mean(char_roasty), char_earthy = mean(char_earthy))
+mean_ingredient_year
+```
+
+```{r}
+#wide to long
+tab <- mean_ingredient_year %>% pivot_longer(-review_date, names_to = "feature", values_to = "mean_score")
+tab
+```
+
+# Part IV: Data Visualization
+
+```{r}
+meanscore_year <- chocolate %>% group_by(review_date) %>% summarise(mean_score = mean(rating))
+meanscore_year
+p <- ggplot(meanscore_year, aes(y = mean_score, x = review_date)) + geom_point() + theme_bw() + geom_smooth(method = "loess", se = FALSE) + labs(title = "Chocolates Mean Rating by Year", subtitle = "This plot shows a trend that as year increases, the mean rating scores of chocolate also increases.", y = "mean rating", x = "year", caption = "Created by Meilin Zheng") 
+p
+```
+
+# Part V: Make the Worst Plot
+
+```{r}
+p <- ggplot(chocholate_new, aes(x = rating, y = ingredients)) + geom_point(aes(color = cocoa_percent)) + labs(title = "Dot Plot") + geom_line() + theme_classic()
+p
+```
+
+* I added ingredients as the y axis. However, it makes more sense if we put rating on the y axis and ingredients on the y axis. From here, we compare the ratings by ingredients more straightforwardly. 
+
+* For variable 'ingredients', there are a lot of levels, and the levels are not clear. I didn't make modifications on the levels of ingredients. To improve this, in my opinion, we can either use the number (1 to 6 types of ingredients) to compare the effect of number of ingredients on rating. 
+
+* I added `geom_point()` to show the ratings in each level of ingredients. However, dots are not very straightforward in showing the relationship between ratings and ingredients. If we want to compare ratings across levels of ingredients, a boxplot that shows the min, max, mean, and median is preferred. 
+
+* I added the argument `color = cocoa_percent` in order to see whether the cocoa-percent also affects rating scores. However, the color is not clear. To improve this, we can first change cocoa_percent into categorical variable so that each level will have a more distinct color. Moreover, we can also use `scale_color_mannual()` to set up colors manually. 
+
+* I added `geom_line()` to connect the dots, but not too much useful information is shown by the lines. In my opinion, to improve this plot, a line won't be necessary. 
+
+* I added `labs(title = 'dot plot')`, which gives the title of this plot. A more well-defined, informative title can be "Box Plot of Ratings of Chocolates vs. Number of Ingredients, by cocoa levels". 
+
+* I added `theme_classic()` to change the theme. This theme gives a white background with no grids. This is very ugly because we can not clearly compare the rating scores. I personally prefer `theme_bw()` because it gives a white background while keeps the grids to be black.
+
+
+# Part VI: Make the below plot a better plot!
+
+
+```{r}
+#Original Plot
+chocolate %>%
+    ggplot(aes(
+        x = as.factor(review_date),
+        y = rating,
+        fill = review_date
+    )) +
+    geom_violin()
+```
+
+```{r}
+chocolate %>% mutate(year = as.factor(review_date)) %>% 
+    ggplot(aes(
+        x = as.factor(review_date),
+        y = rating,
+        fill = year #make review_year to be categorical
+    )) +
+    geom_violin() + labs(x = 'Year', y = "Rating Scores", title = "Chocolate Rating Scores by Year") + stat_summary(geom = "point", fun = "mean", color = "black", fill = "black", shape = 24, size = 3) + stat_summary(fun=mean, colour="red", geom="line", aes(group = 1)) + theme_light() + labs(subtitle = "Mean Ratings increases slightly by time; Spread of ratings becomes narrower overtime.")
+```
+
+* The fill argument takes on a continuous variable, which makes us hard to distinguish the years. I changed the `review_date` variable into a categorical variable that takes 16 levels (from 2006 to 2021). The color now is more distinct. 
+
+* The label of x-axis and y-axis is not very clear, so I changed it to year and rating scores, respectively, so now we can clearly see what these axis represent in the first sight. 
+
+* I added a title, named as "Chocolate Rating Scores by Year". In this way, audience can clearly see what information this plot is trying to show from the first sight. 
+
+* We can clearly see the distribution and spread of the ratings for each year, however, some distributions are not unimodal so it's hard to see where the mean is located. Therefore, I added the black triangles to represent the means in each distribution, which helps us compare the mean rating scores more straightforwardly across years. 
+
+* I then added a line that connects the means, so audience can see a trend of the mean rating scores across time (year). 
+
+* I added the `theme_light()` to change the background to white to make the violin plots stand out, instead of being distracted by the grey background, audience will be more attracted into the violin plots. 
+
+* I then added a subtitle describing the major information of this plot. Audience can use this as a complement to the visuals. 
+
+
+```{r}
+sessioninfo::session_info()
+```
+
