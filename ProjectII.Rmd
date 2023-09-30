@@ -1,0 +1,331 @@
+---
+title: "Statistical Computing Project 2"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-09-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+# Part 1: Fun with functions
+
+## Part 1A: Exponential transformation
+
+* Function
+
+```{r}
+
+Exp <- function(x, k){
+   if (k == 0){
+     result = 1
+     print(result)
+   }
+   else if (k == 1){
+     result = 1 + x
+     print(result)
+   }
+   else {
+     result = 0
+     for (i in k:0){
+       result = result + as.numeric((x^i)/factorial(i))
+     }
+     print(result)
+   }
+}
+```
+
+
+* Example 
+
+I set $x = 10$, and varies k, where $k = 0, 1, 2, 3$.
+
+If we calculate by hand, 
+
+when $k = 0$, $exp(10) = \frac{10^0}{0!} = 1$
+
+when $k = 1$, $exp(10) = \frac{10^0}{0!} + \frac{10^1}{1!} = 11$
+
+when $k = 2$, $exp(10) = \frac{10^0}{0!} + \frac{10^1}{1!} + \frac{10^2}{2!}= 61$
+
+when $k = 3$, $exp(10) = \frac{10^0}{0!} + \frac{10^1}{1!} + \frac{10^2}{2!} + \frac{10^3}{3!}= 227.6667$
+
+The values calculated by my function is shown below. The results below matches the above values. 
+
+```{r}
+# x is 10, change k from 0 to 3.
+Exp(10, 0)
+Exp(10, 1)
+Exp(10, 2)
+Exp(10, 3)
+```
+
+
+## Part 1B: Sample mean and sample standard deviation
+
+```{r}
+sample_mean <- function(x) {
+    sum(x)/length(x)
+}
+
+sample_sd <- function(x) {
+    sqrt(sum((x - mean(x))^2)/(length(x) - 1))
+}
+
+#example 
+x <- c(1, 5, 5, 10)
+meanx <- sample_mean(x)
+#mean calculated by my function
+meanx
+#mean calculated by base R function
+mean(x)
+samplesd <- sample_sd(x)
+#sample sd calculated by my function
+samplesd
+#sample sd calculated by base R
+sd(x)
+
+```
+
+## Part 1C: Confidence intervals
+
+```{r}
+calculate_CI <- function(x, conf = 0.95) {
+    lower_bound = sample_mean(x) - qt(p = (1 - conf)/2,df = length(x) - 1, lower.tail = FALSE)*(sample_sd(x)/sqrt(length(x)))
+    upper_bound = sample_mean(x) + qt(p = (1 - conf)/2,df = length(x) - 1, lower.tail = FALSE)*(sample_sd(x)/sqrt(length(x)))
+    CI = c(lower_bound, upper_bound)
+    return(CI)
+}
+```
+
+
+Check whether this function is correct. 
+
+```{r}
+set.seed(12)
+x <- rnorm(10000, 0, 1)
+# EXAMPLE
+calculate_CI(x, 0.95)
+
+#check 
+dat <- data.frame(x = x)
+fit <- lm(x ~ 1, dat)
+confint(fit, level = 0.95)
+```
+
+# Part 2: Wrangling data
+
+```{r}
+library(here)
+if (!file.exists(here("data", "tuesdata_rainfall.RDS"))) {
+    tuesdata <- tidytuesdayR::tt_load("2020-01-07")
+    rainfall <- tuesdata$rainfall
+    temperature <- tuesdata$temperature
+
+    # save the files to RDS objects
+    saveRDS(tuesdata$rainfall, file = here("data", "tuesdata_rainfall.RDS"))
+    saveRDS(tuesdata$temperature, file = here("data", "tuesdata_temperature.RDS"))
+}
+```
+
+```{r}
+rainfall <- readRDS(here("data", "tuesdata_rainfall.RDS"))
+temperature <- readRDS(here("data", "tuesdata_temperature.RDS"))
+```
+
+```{r}
+library(tidyverse)
+
+glimpse(rainfall)
+glimpse(temperature)
+```
+
+## 1. Start with rainfall dataset and drop any rows with NAs.
+
+```{r}
+rainfall <- rainfall %>% drop_na()
+unique(is.na(rainfall)) #checked, no NAs in any of these columns 
+#nrow(rainfall) #64476
+```
+
+## 2. Create a new column titled date that combines the columns year, month, day into one column
+
+```{r}
+# unite three columns into one
+rainfall <- rainfall %>% unite("date", year:day, sep = "-", remove = TRUE)
+#this column should not be a character, but should be recognized as a date.
+rainfall$date <- ymd(rainfall$date)
+
+#check the structure
+str(rainfall$date)
+
+
+#add a column that just keeps the year
+rainfall$year <- format(as.Date(rainfall$date, "%d-%m-%Y"), "%Y")
+```
+
+## 3. Using the city_name column, convert the city names (character strings) to all upper case.
+
+```{r}
+unique(rainfall$city_name)
+
+# toupper() function serves this purpose
+rainfall$city_name <- rainfall$city_name %>% toupper()
+unique(rainfall$city_name)
+
+```
+
+## 4. Join this wrangled rainfall dataset with the temperature dataset such that it includes only observations that are in both data frames. 
+
+```{r}
+new_rainfall <- inner_join(rainfall, temperature, by = c("date", "city_name"))
+nrow(new_rainfall)
+ncol(new_rainfall)
+```
+
+# Part 3: Data visualization
+
+## Part 3A: Plotting temperature data over time
+
+```{r, fig.width=10, fig.height=8}
+new_rainfall$year <- as.numeric(new_rainfall$year)
+rainfall_2014 <- new_rainfall %>% filter(year >= 2014)
+rainfall_2014$temp_type <- as.factor(rainfall_2014$temp_type)
+
+p <- ggplot(rainfall_2014, aes(y = temperature, x = date, color = temp_type)) + geom_line() + facet_wrap(.~city_name, nrow = 3,scale="free") + labs(title = "Time Trend of Min and Max Temperature by City", x = "Time", y = "Temperature", subtitle = "There is a stable, periodical fluctuate for both mim and max temperature trend among these five cities.\nCity Canberra has the highest range of temperature (-10C to 40C), while city BERISBANE appears\nto have the lowest temperature range (5C - 35C).", caption = "Created by Meilin Zheng", color = "Temperature\nType") + theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(color = "grey20"), panel.background = element_rect(fill = "white"), panel.grid.major = element_line(color = "darkgrey"), axis.line = element_line(color = "grey")) + scale_color_manual(values = c("min" = "skyblue", "max" = "orange"))
+p
+```
+
+## Part 3B: Plotting rainfall over time
+
+
+* Description of Function Design
+
+I want to build a function that can plot single histograms of rainfall for every combination of year and city_name being given. 
+
+Within in the function, we take two arguments, city name and year.
+
+First of all, we want to check whether the input is correct. We want to check if the input of city and year is in our record. If so, we can continue on the plotting, but if not, we need to stop the function and return an error. The `if()` statement is a great way for us to check this situation. If the condition (input not in our list) is met, we can do something on that condition, and in this case, I want to stop the function. To stop the function, `stop()` in R is a great choice. I also want to inform the users why the function is stopped. 
+
+If the input is in the record, we can start to create the plot. `else()` statement serves my purpose. 
+
+To create my plot, I first need to identify the data being used. The data is the filtered rainfall data based on the input city and year. After filtering the data, I can set aesthetics and plot the histogram. To make the plot clear, I want to add title, subtitle, axis labels, and I also want to make some edits on the theme, bin widths, etc. 
+
+
+* The Code of My Initial Function
+
+```{r}
+myplot <- function(city, year){
+  if(!city %in% rainfall$city_name){
+    stop("City NOT in the list!", call. = FALSE)
+  } #if the input city does not exist in the dataset, stop the function and return the error
+  else if(!year %in% rainfall$year){
+    stop("Year NOT in the list!", call. = FALSE)
+  } #if the input year does not exist in the dataset, stop the function and return the error
+  else{
+    data = new_rainfall %>% filter(city_name == city, year == year) #filter the dataset with specified city name and year
+    data %>%
+    ggplot(aes(log(rainfall))) + 
+    geom_histogram(aes(fill = city), bins = 10) +
+      labs(title = "Histogram of Annual Rainfall within a City", caption = "Meilin Zheng", x = "log of Rainfall Amount", y = "Count") + 
+      theme_bw() + 
+      annotate("text", x = 5, y = 600, label = c("Year")) +
+      annotate("text", x = 5.6, y = 600, label = c(year)) #for a given year, label it on the plot
+  }
+}
+
+# myplot <- function(city, year){
+#   rainfall %>% filter(city_name == city, year == year) %>%
+#   ggplot(aes(log(rainfall))) +
+#   geom_histogram(aes(fill = city))
+# }
+
+```
+
+* Examples
+
+```{r, warning=FALSE}
+myplot("PERTH", 1995)
+```
+
+
+This histogram shows the distribution of log of rainfall amount in Perth city, 1995. 
+
+
+```{r, warning=FALSE}
+myplot("BRISBANE", 2000)
+```
+
+This histogram shows the distribution of log of rainfall amount in BRISBANE city, 2000. 
+
+
+```{r}
+myplot("PERTH", 1200)
+```
+
+
+PERTH is in our records, but the earliest rainfall records is from 1920, which does not include years before that. Entering 1200 gives the error "Year NOT in the list!". 
+
+
+```{r}
+myplot("PERU", 1980)
+```
+
+City PERU is not in our records. Entering PERU gives the error "City NOT in the list". 
+
+
+```{r}
+myplot("perth", 2000)
+```
+
+City PERTH is in our list, however, the function is case sensitive, so when we enter "Perth" instead of "PERTH", the function will also gives the user an error. Since when a user is using this function to plot, he/she indeed wants to plot the histogram of rainfall of this city, and "Perth" and "PERTH" is the same city. The only difference is their case. Therefore, to make plotting more convenient to users, I want to make a little edits on my function that outputs the histogram when the input is in lower case. 
+
+```{r}
+
+myplot2 <- function(city, year = year){
+  if(!toupper(city) %in% rainfall$city_name){
+    stop("City NOT in the list!", call. = FALSE)
+  } #if the input city does not exist in the dataset, stop the function and return the error
+  else if(!year %in% rainfall$year){
+    stop("Year NOT in the list!", call. = FALSE)
+  } #if the input year does not exist in the dataset, stop the function and return the error
+  else{
+    data = new_rainfall %>% filter(city_name == toupper(city), year == year) #filter the dataset with specified city name and year
+    data %>%
+    ggplot(aes(log(rainfall))) + 
+    geom_histogram(aes(fill = city), bins = 10) +
+      labs(title = "Histogram of Annual Rainfall within a City", caption = "Meilin Zheng", x = "log of Rainfall Amount", y = "Count") + 
+      theme_bw() + 
+      annotate("text", x = 5, y = 600, label = c("Year")) +
+      annotate("text", x = 5.6, y = 600, label = c(year)) #for a given year, label it on the plot
+  }
+}
+```
+
+```{r, warning=FALSE}
+myplot2("Perth", 2000)
+```
+
+The function outputs the histogram when the input "Perth" is in lower case. 
+
+
+
+# Part 4: Apply functions and plot
+
+```{r}
+#filter for only years including 2014 and onwards.
+rainfall4 <- new_rainfall %>% filter(year >= 2014)
+
+#For a given city and for a given year, calculate the sample mean (using your function sample_mean()), the sample standard deviation (using your function sample_sd()), and a 95% confidence interval for the average rainfall (using your function calculate_CI()). Contain one column for lower bound and one column for upper bound. 
+rain_df <- rainfall4 %>% group_by(city_name, year) %>% summarise(sample_mean = sample_mean(rainfall), sd = sample_sd(rainfall), CI_lower = calculate_CI(rainfall)[1], CI_upper = calculate_CI(rainfall)[2])
+rain_df <- data.frame(rain_df)
+head(rain_df, n = 10)
+```
+
+```{r, fig.width=10, fig.height=8}
+p <- ggplot(rain_df) + geom_point(aes(y = sample_mean, x = year)) + geom_line(aes(y = sample_mean, x = year)) + geom_errorbar(aes(y = sample_mean, x = year, ymin = CI_lower, ymax = CI_upper), width = 0.2, alpha = 0.4, color = "blue") + facet_wrap(.~ city_name, scale = 'free') + theme_bw() + scale_y_continuous(limits = c(0, 12), n.breaks = 4)+ labs(title = "Estimates of Mean Annual Rainfall by City, from 2014 to 2019, with 95% CI", subtitle = "We found a general trend of slight decrease in the estimated annual mean rainfall overtime. Among \nthese cities, city Canberra has the most stable estimated annual mean rainfall, and city Perth has\nthe largest fluctuate in its annual mean rainfall.", caption = "Created by Meilin Zheng", x = "year", y = "Estimated Sample Mean")
+p
+```
+
