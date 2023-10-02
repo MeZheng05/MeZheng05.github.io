@@ -119,15 +119,7 @@ confint(fit, level = 0.95)
 
 ```{r}
 library(here)
-if (!file.exists(here("data", "tuesdata_rainfall.RDS"))) {
-    tuesdata <- tidytuesdayR::tt_load("2020-01-07")
-    rainfall <- tuesdata$rainfall
-    temperature <- tuesdata$temperature
 
-    # save the files to RDS objects
-    saveRDS(tuesdata$rainfall, file = here("data", "tuesdata_rainfall.RDS"))
-    saveRDS(tuesdata$temperature, file = here("data", "tuesdata_temperature.RDS"))
-}
 ```
 
 ```{r}
@@ -153,6 +145,8 @@ unique(is.na(rainfall)) #checked, no NAs in any of these columns
 ## 2. Create a new column titled date that combines the columns year, month, day into one column
 
 ```{r}
+##add a column that just keeps the year
+rainfall$year2 <- rainfall$year
 # unite three columns into one
 rainfall <- rainfall %>% unite("date", year:day, sep = "-", remove = TRUE)
 #this column should not be a character, but should be recognized as a date.
@@ -162,8 +156,8 @@ rainfall$date <- ymd(rainfall$date)
 str(rainfall$date)
 
 
-#add a column that just keeps the year
-rainfall$year <- format(as.Date(rainfall$date, "%d-%m-%Y"), "%Y")
+
+
 ```
 
 ## 3. Using the city_name column, convert the city names (character strings) to all upper case.
@@ -180,7 +174,7 @@ unique(rainfall$city_name)
 ## 4. Join this wrangled rainfall dataset with the temperature dataset such that it includes only observations that are in both data frames. 
 
 ```{r}
-new_rainfall <- inner_join(rainfall, temperature, by = c("date", "city_name"))
+new_rainfall <- rainfall %>% inner_join(temperature, by = c("city_name", "date"))
 nrow(new_rainfall)
 ncol(new_rainfall)
 ```
@@ -190,8 +184,8 @@ ncol(new_rainfall)
 ## Part 3A: Plotting temperature data over time
 
 ```{r, fig.width=10, fig.height=8}
-new_rainfall$year <- as.numeric(new_rainfall$year)
-rainfall_2014 <- new_rainfall %>% filter(year >= 2014)
+new_rainfall$year2 <- as.numeric(new_rainfall$year2)
+rainfall_2014 <- new_rainfall %>% filter(year2 >= 2014)
 rainfall_2014$temp_type <- as.factor(rainfall_2014$temp_type)
 
 p <- ggplot(rainfall_2014, aes(y = temperature, x = date, color = temp_type)) + geom_line() + facet_wrap(.~city_name, nrow = 3,scale="free") + labs(title = "Time Trend of Min and Max Temperature by City", x = "Time", y = "Temperature", subtitle = "There is a stable, periodical fluctuate for both mim and max temperature trend among these five cities.\nCity Canberra has the highest range of temperature (-10C to 40C), while city BERISBANE appears\nto have the lowest temperature range (5C - 35C).", caption = "Created by Meilin Zheng", color = "Temperature\nType") + theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(color = "grey20"), panel.background = element_rect(fill = "white"), panel.grid.major = element_line(color = "darkgrey"), axis.line = element_line(color = "grey")) + scale_color_manual(values = c("min" = "skyblue", "max" = "orange"))
@@ -214,27 +208,25 @@ If the input is in the record, we can start to create the plot. `else()` stateme
 To create my plot, I first need to identify the data being used. The data is the filtered rainfall data based on the input city and year. After filtering the data, I can set aesthetics and plot the histogram. To make the plot clear, I want to add title, subtitle, axis labels, and I also want to make some edits on the theme, bin widths, etc. 
 
 
-* The Code of My Initial Function
+* The Code of My Function
 
 ```{r}
 myplot <- function(city, year){
-  if(!city %in% rainfall$city_name){
-    stop("City NOT in the list!", call. = FALSE)
-  } #if the input city does not exist in the dataset, stop the function and return the error
-  else if(!year %in% rainfall$year){
-    stop("Year NOT in the list!", call. = FALSE)
-  } #if the input year does not exist in the dataset, stop the function and return the error
+  if(!(city %in% new_rainfall$city_name & year %in% new_rainfall$year2)){
+    stop("Input NOT in the list!", call. = FALSE)
+  } #If the input does not exist in the dataset, stop the function and return the error
   else{
-    data = new_rainfall %>% filter(city_name == city, year == year) #filter the dataset with specified city name and year
+    data = new_rainfall %>% pivot_wider(names_from = "temp_type",values_from = "temperature") %>% filter(city_name == city, year2 == year)
     data %>%
     ggplot(aes(log(rainfall))) + 
     geom_histogram(aes(fill = city), bins = 10) +
       labs(title = "Histogram of Annual Rainfall within a City", caption = "Meilin Zheng", x = "log of Rainfall Amount", y = "Count") + 
       theme_bw() + 
-      annotate("text", x = 5, y = 600, label = c("Year")) +
-      annotate("text", x = 5.6, y = 600, label = c(year)) #for a given year, label it on the plot
+      annotate("text", x = 5, y = 10, label = c("Year")) +
+      annotate("text", x = 5.6, y = 10, label = c(year)) #for a given year, label it on the plot
   }
 }
+
 
 # myplot <- function(city, year){
 #   rainfall %>% filter(city_name == city, year == year) %>%
@@ -247,11 +239,11 @@ myplot <- function(city, year){
 * Examples
 
 ```{r, warning=FALSE}
-myplot("PERTH", 1995)
+myplot("PERTH",2000)
 ```
 
 
-This histogram shows the distribution of log of rainfall amount in Perth city, 1995. 
+This histogram shows the distribution of log of rainfall amount in Perth city, 2000. 
 
 
 ```{r, warning=FALSE}
@@ -266,14 +258,14 @@ myplot("PERTH", 1200)
 ```
 
 
-PERTH is in our records, but the earliest rainfall records is from 1920, which does not include years before that. Entering 1200 gives the error "Year NOT in the list!". 
+PERTH is in our records, but the earliest rainfall records is from 1920, which does not include years before that. Entering 1200 gives the error "Input NOT in the list!". 
 
 
 ```{r}
 myplot("PERU", 1980)
 ```
 
-City PERU is not in our records. Entering PERU gives the error "City NOT in the list". 
+City PERU is not in our records. Entering PERU gives the error "Input NOT in the list". 
 
 
 ```{r}
@@ -284,22 +276,19 @@ City PERTH is in our list, however, the function is case sensitive, so when we e
 
 ```{r}
 
-myplot2 <- function(city, year = year){
-  if(!toupper(city) %in% rainfall$city_name){
-    stop("City NOT in the list!", call. = FALSE)
-  } #if the input city does not exist in the dataset, stop the function and return the error
-  else if(!year %in% rainfall$year){
-    stop("Year NOT in the list!", call. = FALSE)
-  } #if the input year does not exist in the dataset, stop the function and return the error
+myplot2 <- function(city, year){
+  if(!(toupper(city) %in% new_rainfall$city_name & year %in% new_rainfall$year2)){
+    stop("Input NOT in the list!", call. = FALSE)
+  } #If the input does not exist in the dataset, stop the function and return the error
   else{
-    data = new_rainfall %>% filter(city_name == toupper(city), year == year) #filter the dataset with specified city name and year
+    data = new_rainfall %>% pivot_wider(names_from = "temp_type",values_from = "temperature") %>% filter(city_name == toupper(city), year2 == year)
     data %>%
     ggplot(aes(log(rainfall))) + 
-    geom_histogram(aes(fill = city), bins = 10) +
-      labs(title = "Histogram of Annual Rainfall within a City", caption = "Meilin Zheng", x = "log of Rainfall Amount", y = "Count") + 
+    geom_histogram(bins = 10, fill = "red") +
+      labs(title = paste("Histogram of Annual Rainfall in city", city), caption = "Meilin Zheng", x = "log of Rainfall Amount", y = "Count") + 
       theme_bw() + 
-      annotate("text", x = 5, y = 600, label = c("Year")) +
-      annotate("text", x = 5.6, y = 600, label = c(year)) #for a given year, label it on the plot
+      annotate("text", x = 5, y = 10, label = c("Year")) +
+      annotate("text", x = 5.6, y = 10, label = c(year)) #for a given year, label it on the plot
   }
 }
 ```
@@ -316,16 +305,16 @@ The function outputs the histogram when the input "Perth" is in lower case.
 
 ```{r}
 #filter for only years including 2014 and onwards.
-rainfall4 <- new_rainfall %>% filter(year >= 2014)
+rainfall4 <- new_rainfall %>% filter(year2 >= 2014)
 
 #For a given city and for a given year, calculate the sample mean (using your function sample_mean()), the sample standard deviation (using your function sample_sd()), and a 95% confidence interval for the average rainfall (using your function calculate_CI()). Contain one column for lower bound and one column for upper bound. 
-rain_df <- rainfall4 %>% group_by(city_name, year) %>% summarise(sample_mean = sample_mean(rainfall), sd = sample_sd(rainfall), CI_lower = calculate_CI(rainfall)[1], CI_upper = calculate_CI(rainfall)[2])
+rain_df <- rainfall4 %>% group_by(city_name, year2) %>% summarise(sample_mean = sample_mean(rainfall), sd = sample_sd(rainfall), CI_lower = calculate_CI(rainfall)[1], CI_upper = calculate_CI(rainfall)[2])
 rain_df <- data.frame(rain_df)
 head(rain_df, n = 10)
 ```
 
 ```{r, fig.width=10, fig.height=8}
-p <- ggplot(rain_df) + geom_point(aes(y = sample_mean, x = year)) + geom_line(aes(y = sample_mean, x = year)) + geom_errorbar(aes(y = sample_mean, x = year, ymin = CI_lower, ymax = CI_upper), width = 0.2, alpha = 0.4, color = "blue") + facet_wrap(.~ city_name, scale = 'free') + theme_bw() + scale_y_continuous(limits = c(0, 12), n.breaks = 4)+ labs(title = "Estimates of Mean Annual Rainfall by City, from 2014 to 2019, with 95% CI", subtitle = "We found a general trend of slight decrease in the estimated annual mean rainfall overtime. Among \nthese cities, city Canberra has the most stable estimated annual mean rainfall, and city Perth has\nthe largest fluctuate in its annual mean rainfall.", caption = "Created by Meilin Zheng", x = "year", y = "Estimated Sample Mean")
+p <- ggplot(rain_df) + geom_point(aes(y = sample_mean, x = year2)) + geom_line(aes(y = sample_mean, x = year2)) + geom_errorbar(aes(y = sample_mean, x = year2, ymin = CI_lower, ymax = CI_upper), width = 0.2, alpha = 0.4, color = "blue") + facet_wrap(.~ city_name, scale = 'free') + theme_bw() + scale_y_continuous(limits = c(0, 12), n.breaks = 4)+ labs(title = "Estimates of Mean Annual Rainfall by City, from 2014 to 2019, with 95% CI", subtitle = "We found a general trend of slight decrease in the estimated annual mean rainfall overtime. Among \nthese cities, city Canberra has the most stable estimated annual mean rainfall, and city Perth has\nthe largest fluctuate in its annual mean rainfall.", caption = "Created by Meilin Zheng", x = "year", y = "Estimated Sample Mean")
 p
 ```
 
