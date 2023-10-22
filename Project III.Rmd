@@ -1,0 +1,328 @@
+---
+title: "Project III"
+output: html_document
+date: "2023-10-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+# Read in the dataset
+
+library("here")
+rds_files <- c("b_lyrics.RDS", "ts_lyrics.RDS", "sales.RDS")
+## Check whether we have all 3 files
+if (any(!file.exists(here("data", rds_files)))) {
+    ## If we don't, then download the data
+    b_lyrics <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/beyonce_lyrics.csv")
+    ts_lyrics <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/taylor_swift_lyrics.csv")
+    sales <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/sales.csv")
+
+    ## Then save the data objects to RDS files
+    saveRDS(b_lyrics, file = here("data", "b_lyrics.RDS"))
+    saveRDS(ts_lyrics, file = here("data", "ts_lyrics.RDS"))
+    saveRDS(sales, file = here("data", "sales.RDS"))
+}
+
+b_lyrics <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/beyonce_lyrics.csv")
+ts_lyrics <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/taylor_swift_lyrics.csv")
+sales <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-29/sales.csv")
+```
+## Part 1: Explore album sales
+
+### 1. Data Wranggling
+
+```{r}
+library(tidyverse)
+
+
+#search for pattern that matches things like this “(US)[51]” 
+str_detect(sales$released, "[:graph:]US[:graph:][:graph:][1234567890][1234567890][:graph:]|[:graph:]UK[:graph:][:graph:][1234567890][1234567890][:graph:]")
+#removes them
+sales$released <- str_replace(sales$released, "[:graph:]US[:graph:][:graph:][1234567890][1234567890][:graph:]|[:graph:]UK[:graph:][:graph:][1234567890][1234567890][:graph:]", "")
+sales$released <- mdy(sales$released)
+
+
+#Use forcats to create a factor called country(Note: you may need to collapse some factor levels).
+sales$country <- as.factor(sales$country) 
+sales %>% group_by(country) %>% summarise(n = sum(length(country)))
+#combine the two FR and FRA, World and WW
+sales$country <- fct_collapse(sales$country, World = c("World", "WW"), FRA = c("FR", "FRA"))
+sales$country <- fct_infreq(sales$country)
+sales %>% group_by(country) %>% summarise(n = sum(length(country)))
+
+
+#Transform the sales into a unit that is album sales in millions of dollars.
+sales$sales_million <- sales$sales/1000000
+
+#Keep only album sales from the UK, the US or the World.
+sales <- sales %>% filter(country == "US" | country == "UK" | country == "World")
+
+#Auto print your final wrangled tibble data frame.
+head(sales)
+```
+
+### B. More data wranggling
+
+```{r}
+sales_US <- sales %>% filter(country == "US")
+current_date <- Sys.Date()
+#Create a new column called years_since_release
+sales_US$year <- as.numeric((current_date - sales_US$released)/365)
+sales_US$year_round <- round(sales_US$year)
+
+#Calculate the most recent, oldest, and the median years since albums were released for both Beyoncé and Taylor Swift.
+taylor <- sales_US %>% filter(artist == "Taylor Swift")
+bc <- sales_US %>% filter(artist == "Beyoncé")
+
+table <- rbind(quantile(taylor$year_round), quantile(bc$year_round))
+row.names(table) <- c("Taylor Swift", "Beyoncé")
+table
+```
+
+The most recent released one for Taylor Swift is 4 year ago, and the oldest released one 17 year ago. 
+
+The most recent released one for Beyoncé is 7 years ago. The most oldest released one for Beyoncé is 20 years ago. 
+
+
+### c. 
+
+```{r}
+#Calculate the total album sales for each artist and for each country (only sales from the UK, US, and World).
+sales %>% group_by(artist, country) %>% summarise(total_Sales_Million = sum(sales_million))
+
+total_sales <- sales %>% group_by(artist, country) %>% summarise(total_Sales_Million = sum(sales_million))
+total_sales <- total_sales %>% mutate(sale_percent = total_Sales_Million/sum(total_Sales_Million))
+#Using the total album sales, create a percent stacked barchart using ggplot2 of the percentage of sales of studio albums (in millions) along the y-axis for the two artists along the x-axis colored by the country.
+library(ggplot2)
+p <- ggplot(total_sales, aes(x = artist, y = sale_percent, fill = country)) + geom_bar(position = "stack", stat="identity") + labs(y = "Percent of Sales in Million", title = "Percent of Sales (in million) by Artist and by Country", caption = "Meilin Zheng") + theme_bw()
+p
+```
+
+### D
+
+```{r}
+#create a bar plot for the sales of studio albums (in millions) along the x-axis for each of the album titles along the y-axis.
+
+#You only need to consider the global World sales (you can ignore US and UK sales for this part). (done)
+sales_world <- sales %>% filter(country == "World") 
+
+#The title of the album must be clearly readable along the y-axis.(done)
+#Each bar should be colored by which artist made that album. (done)
+#The bars should be ordered from albums with the most sales (top) to the least sales (bottom) (done)
+p <- ggplot(sales_world) + geom_bar(aes(x = sales_million, y = fct_reorder(title, sales_million), fill = artist), stat = "identity") + labs(x = "Album Name", y = "Sales in Million", title = "World Sales in Million For Each Album, by Taylor Swift and Beyonce", caption = "Meilin Zheng") +theme(axis.text.x = element_text(angle = 45), plot.background=element_rect(fill='transparent', colour='transparent'), panel.background=element_rect(fill='transparent', colour='gray'), panel.border=element_rect(fill='transparent', colour='black'),  panel.grid.major=element_line(colour='grey',linetype='dashed'))
+p
+```
+
+### E
+
+```{r}
+#Using the wrangled data from Part 1A, use ggplot2 to create a scatter plot of sales of studio albums (in millions) along the y-axis by the released date for each album along the x-axis.
+
+#The points should be colored by the artist.
+#There should be three scatter plots (one for UK, US and world sales) faceted by rows.(done)
+
+p <- ggplot(sales) + geom_point(aes(x = released, y = sales_million, color = artist)) + facet_wrap(.~country, nrow=3) + labs(x = "Released Date", y = "Sales in Million", title = "Time Trend of Sales (in million) in US, UK, and the world, by Artist", caption = "Meilin Zheng") + theme_bw()
+p
+```
+
+## Part 2: Exploring sentiment of lyrics
+
+### A. 
+
+Using ts_lyrics, create a new column called line with one line containing the character string for each line of Taylor Swift’s songs.
+
+```{r}
+
+
+library(tidytext)
+ts_lyrics1 <- ts_lyrics %>% 
+  unnest_tokens(
+    output = line,
+    input = Lyrics,
+    token = stringr::str_split,
+    pattern = "\\n"
+  )
+
+#How many lines in Taylor Swift’s lyrics contain the word “hello”? 
+#show all the rows in ts_lyrics that have “hello” in the line column and report how many rows there are in total.
+ts_lyrics1$line[str_detect(ts_lyrics1$line, "[hH]ello")]
+sum(str_count(ts_lyrics1$line, "[hH]ello"))
+
+```
+
+There are 6 rows that contains "hello" or "Hello" in total. 
+
+
+```{r}
+#How many lines in Taylor Swift’s lyrics contain the word “goodbye”? For full credit, show all the rows in ts_lyrics that have “goodbye” in the line column and report how many rows there are in total.
+ts_lyrics1$line[str_detect(ts_lyrics1$line, "[gG]oodbye")]
+sum(str_count(ts_lyrics1$line, "[gG]oodbye"))
+```
+There are 12 rows containing Goodbye or goodbye in total. 
+
+
+### B
+
+```{r}
+#Repeat the same analysis for b_lyrics as described in Part 2A.
+
+#How many lines in the lyrics contain the word “hello”? 
+#show all the rows in b_lyrics that have “hello” in the line column and report how many rows there are in total.
+b_lyrics$line[str_detect(b_lyrics$line, "[hH]ello")]
+sum(str_count(b_lyrics$line, "[hH]ello"))
+
+#How many lines contain Goodbye?
+b_lyrics$line[str_detect(b_lyrics$line, "[Gg]oodbye")]
+sum(str_count(b_lyrics$line, "[Gg]oodbye"))
+```
+
+There are 162 lines for hello and 12 lines that contains goodbye. 
+
+### C
+
+```{r}
+#Using the b_lyrics dataset,
+
+# Tokenize each lyrical line by words.
+b_lyrics_words <- b_lyrics %>% 
+  unnest_tokens(
+    output = word,
+    input = line, 
+    token = "words"
+  )
+
+# Remove the “stopwords”.
+b_lyrics_words_stopwfree <- b_lyrics_words %>% anti_join(stop_words, by = join_by(word))
+
+# Calculate the total number for each word in the lyrics.
+b_lyrics_words_stopwfree_sum <- b_lyrics_words_stopwfree %>% group_by(word) %>% summarise(n = n())
+
+# Using the “bing” sentiment lexicon, add a column to the summarized data frame adding the “bing” sentiment lexicon.
+b_lyrics_words_stopwfree_sent <- b_lyrics_words_stopwfree_sum %>% inner_join(get_sentiments("bing"))
+head(b_lyrics_words_stopwfree_sent, n = 10)
+b_lyrics_words_stopwfree_sent <- data.frame(b_lyrics_words_stopwfree_sent)
+b_lyrics_words_stopwfree_sent$word <- as.factor(b_lyrics_words_stopwfree_sent$word)
+
+# Sort the rows from most frequent to least frequent words.
+b_lyrics_words_stopwfree_sent <- b_lyrics_words_stopwfree_sent[order(-b_lyrics_words_stopwfree_sent$n), ]
+#print head of the dataframe, the highest count love, which is 1362 times
+head(b_lyrics_words_stopwfree_sent)
+#print tail of the dataframe, the lowest count is only once
+tail(b_lyrics_words_stopwfree_sent)
+
+
+# Only keep the top 25 most frequent words.
+b_lyrics_words_stopwfree_sent_top_25 <- b_lyrics_words_stopwfree_sent[1:25, ]
+unique(b_lyrics_words_stopwfree_sent_top_25$word)
+max(b_lyrics_words_stopwfree_sent_top_25$n)
+min(b_lyrics_words_stopwfree_sent_top_25$n)
+
+# Auto print the wrangled tibble data frame.
+b_lyrics_words_stopwfree_sent_top_25
+
+
+
+# Use ggplot2 to create a bar plot with the top words on the y-axis and the frequency of each word on the x-axis. Color each bar by the sentiment of each word from the “bing” sentiment lexicon. Bars should be ordered from most frequent on the top to least frequent on the bottom of the plot.
+b_lyrics_words_stopwfree_sent_top_25 %>% ggplot(aes(fct_reorder(word, n), n, fill = sentiment)) + geom_col() +
+  xlab(NULL) +
+  coord_flip() + theme_bw() + labs(title = "Words by Frequency", caption = "Meilin Zheng")
+
+
+# Create a word cloud of the top 25 most frequent words.
+library(wordcloud)
+b_lyrics_words_stopwfree_sent_top_25 %>% with(wordcloud(word, n))
+```
+
+
+
+
+### D. 
+
+```{r}
+#Repeat the same analysis as above in Part 2C, but for ts_lyrics.
+# Tokenize each lyrical line by words.
+ts_lyrics2 <- ts_lyrics1 %>% unnest_tokens(
+  output = word,
+  input = line,
+  token = "words"
+)
+
+# Remove the “stopwords”.
+ts_lyrics2_stopwordsfree <- ts_lyrics2 %>% anti_join(stop_words, by = join_by(word))
+
+# Calculate the total number for each word in the lyrics.
+ts_lyrics2_stopwordsfree <- ts_lyrics2_stopwordsfree  %>% group_by(word) %>% summarise(n = n())
+ts_lyrics2_stopwordsfree <- data.frame(ts_lyrics2_stopwordsfree)
+
+# Using the “bing” sentiment lexicon, add a column to the summarized data frame adding the “bing” sentiment lexicon.
+ts_lyrics2_stopwordsfree_sent <- ts_lyrics2_stopwordsfree %>% inner_join(get_sentiments("bing"))
+ts_lyrics2_stopwordsfree_sent$word <- as.factor(ts_lyrics2_stopwordsfree_sent$word)
+
+
+# Sort the rows from most frequent to least frequent words.
+ts_lyrics2_stopwordsfree_sent <- ts_lyrics2_stopwordsfree_sent[order(-ts_lyrics2_stopwordsfree_sent$n), ]
+
+# Only keep the top 25 most frequent words.
+ts_lyrics2_stopwordsfree_sent <- ts_lyrics2_stopwordsfree_sent[1:25, ]
+
+# Auto print the wrangled tibble data frame.
+ts_lyrics2_stopwordsfree_sent
+
+# Use ggplot2 to create a bar plot with the top words on the y-axis and the frequency of each word on the x-axis. Color each bar by the sentiment of each word from the “bing” sentiment lexicon. Bars should be ordered from most frequent on the top to least frequent on the bottom of the plot.
+ts_lyrics2_stopwordsfree_sent %>% ggplot(aes(fct_reorder(word, n), n, fill = sentiment)) + geom_col() +
+  xlab(NULL) +
+  coord_flip() + theme_bw() + labs(title = "Words by Frequency", caption = "Meilin Zheng")
+
+# Create a word cloud of the top 25 most frequent words.
+ts_lyrics2_stopwordsfree_sent %>% with(wordcloud(word, n))
+```
+
+
+### E
+
+```{r}
+#Using the ts_lyrics dataset,
+
+ts_lyrics3 <- ts_lyrics1 %>% unnest_tokens(
+  output = word,
+  input = line,
+  token = "words"
+)
+
+# Remove the “stopwords”.
+ts_lyrics3_stopwordsfree <- ts_lyrics3 %>% anti_join(stop_words, by = join_by(word))
+
+# Calculate the total number for each word in the lyrics for each Album.
+ts_lyrics3_stopwordsfree <- ts_lyrics3_stopwordsfree %>% group_by(Album, word) %>% summarise(n = n())
+
+# Using the “afinn” sentiment lexicon, add a column to the summarized data frame adding the “afinn” sentiment lexicon.
+ts_lyrics3_stopwordsfree <- ts_lyrics3_stopwordsfree %>% inner_join(get_sentiments("afinn"))
+
+# Calculate the average sentiment score for each Album.
+avg_score <- ts_lyrics3_stopwordsfree %>% group_by(Album) %>% summarise(avg_score = mean(value))
+avg_score <- data.frame(avg_score)
+
+# Auto print the wrangled tibble data frame.
+avg_score
+
+# Join the wrangled data frame from Part 1A (album sales in millions) filtered down to US sales with the wrangled data frame from #6 above (average sentiment score for each album).
+data <- sales %>% mutate(Album = title) %>% filter(country == "US") %>% select(-title) %>% inner_join(avg_score, by = "Album")
+head(data)
+
+# Using ggplot2, create a scatter plot of the average sentiment score for each album (y-axis) and the album release data along the x-axis. Make the size of each point the album sales in millions.
+data %>% ggplot(aes(x = released, y = avg_score, size = sales_million)) + geom_point() + theme_bw() + labs(title = "Time Trend of Average Sentiment Score for Each Album, distinguished by Sales", x = "Released Time", y = "Average Sentiment Score", caption = "Meilin Zheng")
+
+# Add a horizontal line at y-intercept=0.
+data %>% ggplot(aes(x = released, y = avg_score, size = sales_million)) + geom_point() + theme_bw() + labs(title = "Time Trend of Average Sentiment Score for Each Album, distinguished by Sales", x = "Released Time", y = "Average Sentiment Score", caption = "Meilin Zheng") + geom_hline(yintercept = 0, linetype = 2, size = 0.5, color = "blue")
+
+# Write 2-3 sentences interpreting the plot answering the question “How has the sentiment of Taylor Swift’s albums have changed over time?”. Add a title, subtitle, and useful axis labels.
+data %>% ggplot(aes(x = released, y = avg_score, size = sales_million)) + geom_point() + theme_bw() + labs(title = "Time Trend of Average Sentiment Score for Each Album, distinguished by Sales", x = "Released Time", y = "Average Sentiment Score", subtitle = "From round 2005 to 2020, the Average Sentiment Score of each Album released by Taylor Swift\ndecreases.This indicates that her Album contains more and more negative words overtime.\nAlso, the words in her album are being less positive overtime.", caption = "Meilin Zheng") + geom_hline(yintercept = 0, linetype = 2, size = 0.5, color = "blue")
+```
+
+
+
