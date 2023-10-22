@@ -150,7 +150,7 @@ ts_lyrics1 <- ts_lyrics %>%
 
 #How many lines in Taylor Swift’s lyrics contain the word “hello”? 
 #show all the rows in ts_lyrics that have “hello” in the line column and report how many rows there are in total.
-ts_lyrics1$line[str_detect(ts_lyrics1$line, "[hH]ello")]
+ts_lyrics1[str_detect(ts_lyrics1$line, "[hH]ello"), ]
 sum(str_count(ts_lyrics1$line, "[hH]ello"))
 
 ```
@@ -160,7 +160,7 @@ There are 6 rows that contains "hello" or "Hello" in total.
 
 ```{r}
 #How many lines in Taylor Swift’s lyrics contain the word “goodbye”? For full credit, show all the rows in ts_lyrics that have “goodbye” in the line column and report how many rows there are in total.
-ts_lyrics1$line[str_detect(ts_lyrics1$line, "[gG]oodbye")]
+ts_lyrics1[str_detect(ts_lyrics1$line, "[gG]oodbye"), ]
 sum(str_count(ts_lyrics1$line, "[gG]oodbye"))
 ```
 There are 12 rows containing Goodbye or goodbye in total. 
@@ -173,15 +173,15 @@ There are 12 rows containing Goodbye or goodbye in total.
 
 #How many lines in the lyrics contain the word “hello”? 
 #show all the rows in b_lyrics that have “hello” in the line column and report how many rows there are in total.
-b_lyrics$line[str_detect(b_lyrics$line, "[hH]ello")]
-sum(str_count(b_lyrics$line, "[hH]ello"))
+b_lyrics[str_detect(b_lyrics$line, "[hH]ello"), ]
+
 
 #How many lines contain Goodbye?
-b_lyrics$line[str_detect(b_lyrics$line, "[Gg]oodbye")]
+b_lyrics[str_detect(b_lyrics$line, "[Gg]oodbye"), ]
 sum(str_count(b_lyrics$line, "[Gg]oodbye"))
 ```
 
-There are 162 lines for hello and 12 lines that contains goodbye. 
+There are 91 lines for hello and 12 lines that contains goodbye. 
 
 ### C
 
