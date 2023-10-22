@@ -41,9 +41,9 @@ library(tidyverse)
 
 
 #search for pattern that matches things like this “(US)[51]” 
-str_detect(sales$released, "[:graph:]US[:graph:][:graph:][1234567890][1234567890][:graph:]|[:graph:]UK[:graph:][:graph:][1234567890][1234567890][:graph:]")
+str_detect(sales$released, "[:graph:]US[:graph:]{2}[1234567890]{2}[:graph:]|[:graph:]UK[:graph:]{2}[1234567890]{2}[:graph:]")
 #removes them
-sales$released <- str_replace(sales$released, "[:graph:]US[:graph:][:graph:][1234567890][1234567890][:graph:]|[:graph:]UK[:graph:][:graph:][1234567890][1234567890][:graph:]", "")
+sales$released <- str_replace(sales$released, "[:graph:]US[:graph:]{2}[1234567890]{2}[:graph:]|[:graph:]UK[:graph:]{2}[1234567890]{2}[:graph:]", "")
 sales$released <- mdy(sales$released)
 
 
