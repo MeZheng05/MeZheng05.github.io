@@ -303,6 +303,7 @@ ts_lyrics3_stopwordsfree <- ts_lyrics3_stopwordsfree %>% group_by(Album, word) %
 # Using the “afinn” sentiment lexicon, add a column to the summarized data frame adding the “afinn” sentiment lexicon.
 ts_lyrics3_stopwordsfree <- ts_lyrics3_stopwordsfree %>% inner_join(get_sentiments("afinn"))
 
+
 # Calculate the average sentiment score for each Album.
 avg_score <- ts_lyrics3_stopwordsfree %>% group_by(Album) %>% summarise(avg_score = mean(value))
 avg_score <- data.frame(avg_score)
@@ -311,7 +312,9 @@ avg_score <- data.frame(avg_score)
 avg_score
 
 # Join the wrangled data frame from Part 1A (album sales in millions) filtered down to US sales with the wrangled data frame from #6 above (average sentiment score for each album).
-data <- sales %>% mutate(Album = title) %>% filter(country == "US") %>% select(-title) %>% inner_join(avg_score, by = "Album")
+sales$title <- tolower(sales$title)
+avg_score$Album <- tolower(avg_score$Album)
+data <- sales %>% mutate(Album = title) %>% filter(country == "US") %>% inner_join(avg_score, by = "Album")
 head(data)
 
 # Using ggplot2, create a scatter plot of the average sentiment score for each album (y-axis) and the album release data along the x-axis. Make the size of each point the album sales in millions.
