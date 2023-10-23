@@ -126,7 +126,7 @@ p
 #The points should be colored by the artist.
 #There should be three scatter plots (one for UK, US and world sales) faceted by rows.(done)
 
-p <- ggplot(sales) + geom_point(aes(x = released, y = sales_million, color = artist)) + facet_wrap(.~country, nrow=3) + labs(x = "Released Date", y = "Sales in Million", title = "Time Trend of Sales (in million) in US, UK, and the world, by Artist", caption = "Meilin Zheng") + theme_bw()
+p <- ggplot(sales) + geom_point(aes(x = released, y = sales_million, color = artist)) + facet_wrap(.~country, nrow=3, scales = "free") + labs(x = "Released Date", y = "Sales in Million", title = "Time Trend of Sales (in million) in US, UK, and the world, by Artist", caption = "Meilin Zheng") + theme_bw()
 p
 ```
 
